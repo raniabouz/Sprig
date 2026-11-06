@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprig</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sprig">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f8f4ec">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>html{color-scheme:light}body{margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen reader — a "desk" behind floating pages, translucent bars top and bottom, bottom sheets for tools. Chrome colors derive from the chosen reading theme. */
+:root {
+  --paper: #f8f4ec;
+  --ink: #2e2a24;
+  --accent: #1f6f78;
+  --danger: #b3261e;
+  --font-display: "Literata", "Iowan Old Style", Georgia, serif;
+  --font-ui: "Instrument Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --desk: color-mix(in oklab, var(--paper) 88%, var(--ink));
+  --chrome: color-mix(in oklab, var(--paper) 94%, var(--ink));
+  --line: color-mix(in oklab, var(--ink) 16%, var(--paper));
+  --muted: color-mix(in oklab, var(--ink) 62%, var(--paper));
+  --soft: color-mix(in oklab, var(--ink) 7%, var(--paper));
+  --on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #17191e; --ink: #c8ccd4; --accent: #e0a84f; --danger: #ff8a80; --on-accent: #1a1406; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #17191e; --ink: #c8ccd4; --accent: #e0a84f; --danger: #ff8a80; --on-accent: #1a1406; color-scheme: dark; }
+
+html, body { height: 100%; overflow: hidden; }
+[hidden] { display: none !important; }
+body { background: var(--desk); color: var(--ink); font-family: var(--font-ui); font-size: 15px; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+
+.bar { position: relative; z-index: 5; background: color-mix(in oklab, var(--chrome) 88%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); transition: transform .28s ease, opacity .28s ease; }
+.top { padding: env(safe-area-inset-top, 0px) max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+.top-inner { display: flex; align-items: center; gap: 8px; min-height: 52px; }
+.book-title { flex: 1; min-width: 0; font-family: var(--font-display); font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.bottom { padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); }
+.tools { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 520px; margin: 0 auto; }
+.tool { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 4px 8px; background: none; border: 0; font-size: 11.5px; letter-spacing: .02em; color: var(--muted); position: relative; }
+.tool svg { width: 23px; height: 23px; }
+.tool.on { color: var(--accent); }
+.badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 17px; height: 17px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 10.5px; font-weight: 600; display: grid; place-items: center; padding: 0 4px; }
+
+body.immersive .top { transform: translateY(-100%); opacity: 0; }
+body.immersive .bottom { transform: translateY(100%); opacity: 0; }
+
+.icon-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border-radius: 10px; border: 0; background: none; color: var(--ink); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn:active { background: var(--soft); }
+.pill { height: 30px; padding: 0 11px; border-radius: 15px; border: 1px solid var(--line); background: var(--paper); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pill.timer { border-color: var(--accent); color: var(--accent); }
+.pill.timer.done { animation: pulse 1s ease-in-out 4; }
+@keyframes pulse { 50% { background: var(--accent); color: var(--on-accent); } }
+
+/* Viewer */
+#viewer { position: relative; grid-row: 1 / -1; grid-column: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding-block: calc(env(safe-area-inset-top, 0px) + 66px) calc(env(safe-area-inset-bottom, 0px) + 84px); }
+#pages { display: flex; flex-direction: column; align-items: center; gap: var(--gap, 14px); padding-inline: 10px; min-width: min-content; }
+.pg { position: relative; background: var(--paper); box-shadow: 0 1px 2px color-mix(in oklab, var(--ink) 20%, transparent), 0 6px 22px -10px color-mix(in oklab, var(--ink) 35%, transparent); flex: none; }
+.pg canvas { display: block; width: 100%; height: 100%; }
+.pg .num { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pg .mark { position: absolute; top: -6px; right: 10px; width: 16px; height: 22px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); border: 0; padding: 0; }
+.top, .bottom { grid-column: 1; }
+.top { grid-row: 1; align-self: start; }
+.bottom { grid-row: 3; align-self: end; }
+#app::before, #library::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--ink); opacity: var(--pat-strength, 0);
+  -webkit-mask-image: var(--pattern, none); mask-image: var(--pattern, none); -webkit-mask-size: 120px; mask-size: 120px; }
+#library::before { position: fixed; }
+.lib-wrap { position: relative; z-index: 1; }
+#dim { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 4; transition: opacity .2s; }
+
+.state-msg { margin: 18vh auto 0; max-width: 34ch; text-align: center; color: var(--muted); line-height: 1.5; padding-inline: 16px; }
+.state-msg strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 19px; margin-bottom: 6px; }
+
+/* Library */
+#library { position: fixed; inset: 0; z-index: 8; background: var(--desk); overflow: auto; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); }
+.lib-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.lib-head { display: flex; align-items: center; gap: 10px; padding-top: 6px; }
+.lib-head h1 { flex: 1; margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 30px; letter-spacing: -.01em; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-weight: 600; font-size: 14.5px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.small { height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 10px; }
+.btn.ghost { background: none; }
+.btn.danger { color: var(--danger); }
+.btn svg { width: 18px; height: 18px; }
+.btn:disabled { opacity: .5; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 100px; }
+.books { display: flex; flex-direction: column; gap: 10px; }
+.book { display: grid; grid-template-columns: 46px 1fr auto; gap: 14px; align-items: center; padding: 12px; background: var(--paper); border-radius: 14px; border: 1px solid var(--line); }
+.book.current { border-color: var(--accent); }
+.spine { width: 46px; height: 62px; border-radius: 3px 6px 6px 3px; background: var(--soft); border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--accent); }
+.book-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; background: none; border: 0; text-align: left; padding: 0; }
+.book-main .t { font-family: var(--font-display); font-weight: 600; font-size: 16.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.book-main .m { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress { height: 4px; border-radius: 2px; background: var(--soft); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); }
+.chip { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: var(--soft); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+.lib-foot { font-size: 12.5px; color: var(--muted); line-height: 1.5; text-align: center; }
+.empty-lib { padding: 28px 16px; text-align: center; color: var(--muted); border: 1.5px dashed var(--line); border-radius: 14px; line-height: 1.5; }
+
+/* Sheets */
+#scrim { position: fixed; inset: 0; z-index: 9; background: color-mix(in oklab, #000 35%, transparent); opacity: 0; pointer-events: none; transition: opacity .22s; }
+#scrim.show { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-height: min(82%, 640px); display: flex; flex-direction: column; background: var(--chrome); color: var(--ink); border-radius: 20px 20px 0 0; box-shadow: 0 -10px 40px -10px rgba(0,0,0,.35); transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); max-width: 620px; margin: 0 auto; }
+.sheet.show { transform: none; }
+.sheet-head { display: flex; align-items: center; gap: 8px; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); }
+.sheet-head::before { content: ""; position: absolute; top: 6px; left: 50%; width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: var(--line); }
+.sheet-head h2 { flex: 1; margin: 8px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 20px; }
+.sheet-body { overflow: auto; padding: 6px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 20px) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 18px; }
+.label { font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.hint { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin: 0; }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px; }
+.sw { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; font-size: 12px; color: var(--muted); }
+.sw .face { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; display: grid; place-items: center; font-family: var(--font-display); font-size: 22px; border: 1px solid var(--line); box-shadow: inset 0 0 0 0 var(--accent); transition: box-shadow .15s; }
+.sw[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
+.sw[aria-pressed="true"] .face { box-shadow: inset 0 0 0 3px var(--accent); }
+.sw .face.auto { background: linear-gradient(135deg, #f8f4ec 50%, #17191e 50%); }
+.sw .face.auto span { mix-blend-mode: difference; color: #fff; }
+
+.row { display: flex; align-items: center; gap: 12px; }
+.row > label { flex: 1; min-width: 0; }
+.custom-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.color-field { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; }
+.color-field input { width: 34px; height: 34px; border: 0; padding: 0; background: none; border-radius: 8px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.slider { display: grid; grid-template-columns: 92px 1fr 44px; align-items: center; gap: 10px; font-size: 14px; }
+.slider output { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 12px; background: var(--soft); gap: 3px; }
+.seg button { border: 0; background: none; height: 36px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { height: 36px; min-width: 52px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line); background: var(--paper); font-weight: 600; font-variant-numeric: tabular-nums; }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chips input { width: 72px; height: 36px; border-radius: 18px; border: 1px solid var(--line); background: var(--paper); text-align: center; }
+.clock { font-family: var(--font-display); font-size: 56px; font-weight: 400; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1.1; }
+.clock-sub { text-align: center; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+.sound { display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
+.sound.playing { border-color: var(--accent); }
+.play { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--line); background: var(--soft); display: grid; place-items: center; }
+.play svg { width: 18px; height: 18px; }
+.sound.playing .play { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.sound .info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sound .name { font-weight: 600; font-size: 14.5px; display: flex; justify-content: space-between; gap: 8px; }
+.sound .name small { font-weight: 400; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.composer { display: flex; flex-direction: column; gap: 8px; }
+.composer textarea, .note textarea { width: 100%; min-height: 84px; resize: vertical; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); line-height: 1.45; font-size: 16px; }
+.composer .row { justify-content: space-between; }
+.notes { display: flex; flex-direction: column; gap: 10px; }
+.note { padding: 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.note .text { white-space: pre-wrap; line-height: 1.5; overflow-wrap: anywhere; font-family: var(--font-display); font-size: 15px; }
+.note .meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.note .meta .sp { flex: 1; }
+.pg-link { border: 0; background: var(--soft); color: var(--accent); font-weight: 600; font-size: 12.5px; padding: 4px 9px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.link-btn { border: 0; background: none; color: var(--muted); font-size: 12.5px; padding: 4px 6px; border-radius: 6px; }
+.link-btn.armed { color: var(--danger); font-weight: 600; }
+.goto { display: flex; gap: 10px; align-items: center; }
+.goto input[type="number"] { width: 90px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); text-align: center; font-size: 16px; }
+
+#toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 86px); transform: translate(-50%, 20px); z-index: 20; background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; text-align: center; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="app">
+  <header class="bar top" id="topbar">
+    <div class="top-inner">
+      <button class="icon-btn" id="libBtn" aria-label="Open library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v14"/><path d="M9 19V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12"/><path d="m14.5 6.8 2.9-.8a1 1 0 0 1 1.2.7l3 11.4"/><path d="M3 19.5h18"/></svg>
+        Library
+      </button>
+      <div class="book-title" id="bookTitle">Sprig</div>
+      <button class="pill timer" id="timerPill" hidden aria-label="Reading timer">0:00</button>
+      <button class="pill" id="pagePill" aria-label="Go to page">–</button>
+    </div>
+  </header>
+
+  <main id="viewer" aria-label="Document">
+    <div id="pages"></div>
+  </main>
+
+  <nav class="bar bottom" id="bottombar" aria-label="Reader tools">
+    <div class="tools">
+      <button class="tool" data-sheet="look" id="toolLook">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>
+        Look
+      </button>
+      <button class="tool" data-sheet="timer" id="toolTimer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2"/><path d="M9.5 2.5h5"/></svg>
+        Timer
+      </button>
+      <button class="tool" data-sheet="notes" id="toolNotes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h10l4 4V20a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 20z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>
+        Notes
+        <span class="badge" id="noteBadge" hidden>0</span>
+      </button>
+      <button class="tool" data-sheet="sounds" id="toolSounds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></svg>
+        Sounds
+      </button>
+    </div>
+  </nav>
+</div>
+<div id="dim"></div>
+
+<section id="library" hidden aria-label="Library">
+  <div class="lib-wrap">
+    <div class="lib-head">
+      <h1>Library</h1>
+      <label class="btn primary file-btn" id="addLabel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Add PDF
+        <input type="file" id="fileInput" accept="application/pdf,.pdf" aria-label="Add a PDF">
+      </label>
+    </div>
+    <div class="books" id="bookList"></div>
+    <p class="lib-foot" id="libFoot"></p>
+    <div class="actions"><button class="btn ghost" id="libClose">Back to reading</button></div>
+  </div>
+</section>
+
+<div id="scrim"></div>
+
+<section class="sheet" id="sheet-look" aria-label="Look" role="dialog">
+  <div class="sheet-head"><h2>Look</h2><button class="btn small ghost" data-close>Done</button></div>
+  <div class="sheet-body">
+    <div>
+      <div class="label">Page theme</div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div>
+      <div class="label">Background pattern</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="seg" id="patternSeg">
+          <button data-pat="off" aria-pressed="false">Off</button>
+          <button data-pat="sprigs" aria-pressed="true">Sprigs</button>
+        </div>
+        <label class="slider" id="patStrengthRow"><span>Strength</span><input type="range" id="patStrength" min="0.04" max="0.3" step="0.01"><output id="patStrengthOut"></output></label>
+      </div>
+    </div>
+    <div id="customBox" hidden>
+      <div class="label">Custom colours</div>
+      <div class="custom-colors">
+        <label class="color-field"><input type="color" id="cPaper" value="#f3efe6"> Paper</label>
+        <label class="color-field"><input type="color" id="cInk" value="#222222"> Text</label>
+        <label class="color-field"><input type="color" id="cAccent" value="#2f6b4a"> Accent</label>
+      </div>
+    </div>
+    <div>
+      <div class="label">Adjust</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <label class="slider"><span>Text weight</span><input type="range" id="weight" min="0.5" max="1.6" step="0.05"><output id="weightOut"></output></label>
+        <label class="slider"><span>Dim screen</span><input type="range" id="dimR" min="0" max="0.7" step="0.05"><output id="dimROut"></output></label>
+        <label class="slider"><span>Zoom</span><input type="range" id="zoom" min="0.6" max="3" step="0.1"><output id="zoomOut"></output></label>
+        <label class="slider"><span>Page gap</span><input type="range" id="gap" min="0" max="40" step="2"><output id="gapOut"></output></label>
+      </div>
+    </div>
+    <p class="hint">Themes recolour the page itself, so photos turn into two-tone versions of the theme. Pick Original to see a page's real colours. Tap the page to hide the toolbars.</p>
+  </div>
+</section>
+
+<section class="sheet" id="sheet-timer" aria-label="Reading timer" role="dialog">
+  <div class="sheet-head"><h2>Reading timer</h2><button class="btn small ghost" data-close>Done</button></div>
+  <div class="sheet-body">
+    <div class="seg" id="timerMode">
+      <button data-mode="countdown" aria-pressed="true">Countdown</button>
+      <button data-mode="stopwatch" aria-pressed="false">Stopwatch</button>
+    </div>
+    <div id="durBox">
+      <div class="label">Minutes</div>
+      <div class="chips" id="durChips"></div>
+    </div>
+    <div>
+      <div class="clock" id="clock">25:00</div>
+      <div class="clock-sub" id="clockSub">Ready</div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="tStart">Start</button>
+      <button class="btn" id="tReset">Reset</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <label class="check"><input type="checkbox" id="optChime"> Chime when time is up</label>
+      <label class="check"><input type="checkbox" id="optFade"> Fade out sounds when time is up</label>
+    </div>
+    <p class="hint" id="bookTime"></p>
+  </div>
+</section>
+
+<section class="sheet" id="sheet-notes" aria-label="Notes" role="dialog">
+  <div class="sheet-head"><h2>Notes</h2><button class="btn small ghost" id="copyNotes">Copy all</button><button class="btn small ghost" data-close>Done</button></div>
+  <div class="sheet-body">
+    <div class="composer">
+      <textarea id="noteText" placeholder="Write a note…" aria-label="New note"></textarea>
+      <div class="row"><span class="hint" id="noteFor">Saves to page 1</span><button class="btn primary small" id="noteSave">Save note</button></div>
+    </div>
+    <div class="notes" id="noteList"></div>
+  </div>
+</section>
+
+<section class="sheet" id="sheet-sounds" aria-label="Sounds" role="dialog">
+  <div class="sheet-head"><h2>Sounds</h2><button class="btn small ghost" id="stopAll">Stop all</button><button class="btn small ghost" data-close>Done</button></div>
+  <div class="sheet-body">
+    <div style="display:flex;flex-direction:column;gap:10px" id="soundList"></div>
+    <label class="slider"><span>Master</span><input type="range" id="master" min="0" max="1" step="0.05"><output id="masterOut"></output></label>
+    <p class="hint">Mix as many as you like. If you hear nothing on your iPhone, turn off silent mode.</p>
+  </div>
+</section>
+
+<section class="sheet" id="sheet-goto" aria-label="Go to page" role="dialog">
+  <div class="sheet-head"><h2>Go to page</h2><button class="btn small ghost" data-close>Done</button></div>
+  <div class="sheet-body">
+    <input type="range" id="gotoRange" min="1" max="1" step="1" aria-label="Page">
+    <div class="goto"><input type="number" id="gotoNum" min="1" inputmode="numeric" aria-label="Page number"><span class="hint" id="gotoOf">of 1</span><span style="flex:1"></span><button class="btn primary" id="gotoBtn">Go</button></div>
+  </div>
+</section>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const root = document.documentElement;
+const SAMPLE_ID = "sample";
+const MAX_UPLOAD = 20 * 1024 * 1024;
+
+/* ---------- small storage helpers ---------- */
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem("lamplight:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("lamplight:" + k, JSON.stringify(v)); } catch {} },
+};
+const IDB = (() => {
+  let p = null;
+  function open() {
+    if (!p) p = new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open("lamplight", 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("blobs");
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      } catch (e) { rej(e); }
+    });
+    return p;
+  }
+  async function tx(mode, fn) {
+    try {
+      const db = await open();
+      return await new Promise((res, rej) => {
+        const req = fn(db.transaction("blobs", mode).objectStore("blobs"));
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    } catch { return null; }
+  }
+  return {
+    get: (k) => tx("readonly", (s) => s.get(k)),
+    put: (k, v) => tx("readwrite", (s) => s.put(v, k)),
+    del: (k) => tx("readwrite", (s) => s.delete(k)),
+  };
+})();
+const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ---------- Store: Claude account (db + assets) when available, else this browser ---------- */
+const Store = {
+  cloud: false, db: null, assets: null, me: null,
+  async init() {
+    try {
+      if (!window.claude || !window.claude.use) return;
+      const timeout = new Promise((r) => setTimeout(() => r(null), 6000));
+      const got = await Promise.race([Promise.all([claude.use("db"), claude.use("user"), claude.use("assets")]), timeout]);
+      if (!got) return;
+      const [db, user, assets] = got;
+      if (!db || !user) return;
+      const id = await user.id();
+      if (!id) return;
+      this.db = db; this.assets = assets; this.me = id; this.cloud = true;
+    } catch { this.cloud = false; }
+  },
+  col() { return this.db.collection("data/users/" + this.me); },
+  async listBooks() {
+    if (this.cloud) {
+      try {
+        const s = await this.col().where("kind", "==", "book").get();
+        return s.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      } catch { toast("Couldn't reach your library. Showing what's on this device."); }
+    }
+    return LS.get("books", []);
+  },
+  async saveBook(b) {
+    const { id, ...rest } = b;
+    if (this.cloud) { await this.col().doc(id).set(Object.assign({}, rest, { kind: "book" })); return; }
+    const all = LS.get("books", []).filter((x) => x.id !== id); all.push(b); LS.set("books", all);
+  },
+  async patchBook(id, patch) {
+    if (id === SAMPLE_ID) { LS.set("sample", Object.assign(LS.get("sample", {}), patch)); return; }
+    if (this.cloud) { try { await this.col().doc(id).update(patch); } catch {} return; }
+    LS.set("books", LS.get("books", []).map((x) => (x.id === id ? Object.assign(x, patch) : x)));
+  },
+  async deleteBook(b) {
+    const notes = await this.listNotes(b.id);
+    for (const n of notes) await this.deleteNote(b.id, n.id);
+    if (this.cloud) {
+      await this.col().doc(b.id).delete();
+      if (b.assetId && this.assets) { try { await this.assets.delete(b.assetId); } catch {} }
+    } else {
+      LS.set("books", LS.get("books", []).filter((x) => x.id !== b.id));
+    }
+    await IDB.del("local:" + b.id);
+    if (b.assetId) await IDB.del("asset:" + b.assetId);
+  },
+  notesCol(bookId) { return this.col().doc(bookId).collection("notes"); },
+  async listNotes(bookId) {
+    if (this.cloud) {
+      try { const s = await this.notesCol(bookId).get(); return s.docs.map((d) => Object.assign({ id: d.id }, d.data())); }
+      catch { return []; }
+    }
+    return LS.get("notes:" + bookId, []);
+  },
+  async saveNote(bookId, n) {
+    const { id, ...rest } = n;
+    if (this.cloud) { await this.notesCol(bookId).doc(id).set(rest); return; }
+    const all = LS.get("notes:" + bookId, []).filter((x) => x.id !== id); all.push(n); LS.set("notes:" + bookId, all);
+  },
+  async deleteNote(bookId, id) {
+    if (this.cloud) { await this.notesCol(bookId).doc(id).delete(); return; }
+    LS.set("notes:" + bookId, LS.get("notes:" + bookId, []).filter((x) => x.id !== id));
+  },
+  async loadSettings() {
+    if (!this.cloud) return null;
+    try { const s = await this.col().doc("settings").get(); return s.exists ? s.data() : null; } catch { return null; }
+  },
+  saveSettingsSoon: (() => {
+    let t = null;
+    return function (s) {
+      LS.set("settings", s);
+      if (!Store.cloud) return;
+      clearTimeout(t);
+      t = setTimeout(() => { Store.col().doc("settings").set(Object.assign({ kind: "settings" }, s)).catch(() => {}); }, 1200);
+    };
+  })(),
+};
+
+/* ---------- settings ---------- */
+const DEFAULTS = {
+  theme: "auto", custom: { paper: "#f3efe6", ink: "#222222", accent: "#2f6b4a" },
+  weight: 1, dim: 0, zoom: 1, gap: 14, pattern: "sprigs", patStrength: 0.14,
+  timerMode: "countdown", timerMin: 25, chime: true, fade: true,
+  master: 0.8, vol: { rain: 0.6, fire: 0.6, ocean: 0.6, brown: 0.5, own: 0.7 },
+  lastBook: SAMPLE_ID,
+};
+let S = mergeSettings(LS.get("settings", {}));
+function mergeSettings(x) {
+  const s = Object.assign({}, DEFAULTS, x || {});
+  s.custom = Object.assign({}, DEFAULTS.custom, (x && x.custom) || {});
+  s.vol = Object.assign({}, DEFAULTS.vol, (x && x.vol) || {});
+  return s;
+}
+const save = () => Store.saveSettingsSoon(S);
+
+/* ---------- themes ---------- */
+const THEMES = [
+  { id: "auto", name: "Match system" },
+  { id: "original", name: "Original", paper: "#ffffff", ink: "#111111", accent: "#2f5fb3", recolor: false },
+  { id: "paper", name: "Paper", paper: "#f8f4ec", ink: "#2e2a24", accent: "#1f6f78" },
+  { id: "sepia", name: "Sepia", paper: "#efe2c6", ink: "#4a3520", accent: "#8a4b1f" },
+  { id: "sage", name: "Sage", paper: "#e2eadf", ink: "#1f3326", accent: "#2f6b4a" },
+  { id: "fog", name: "Fog", paper: "#e3e7ec", ink: "#1d2530", accent: "#3d5a80" },
+  { id: "night", name: "Night", paper: "#17191e", ink: "#c8ccd4", accent: "#e0a84f" },
+  { id: "midnight", name: "Midnight", paper: "#0e1a2b", ink: "#bfd0e6", accent: "#7fb2ff" },
+  { id: "plum", name: "Plum", paper: "#241a26", ink: "#e6d3e3", accent: "#d48fc6" },
+  { id: "contrast", name: "High contrast", paper: "#000000", ink: "#ffffff", accent: "#ffd400" },
+  { id: "custom", name: "Custom" },
+];
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const lum = (h) => { const [r, g, b] = hexRgb(h); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
+function systemDark() {
+  const t = root.getAttribute("data-theme");
+  if (t === "dark") return true;
+  if (t === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function currentLook() {
+  let t;
+  if (S.theme === "auto") t = THEMES.find((x) => x.id === (systemDark() ? "night" : "paper"));
+  else if (S.theme === "custom") t = Object.assign({ id: "custom", recolor: true }, S.custom);
+  else t = THEMES.find((x) => x.id === S.theme) || THEMES[2];
+  return { paper: t.paper, ink: t.ink, accent: t.accent, recolor: t.recolor !== false, dark: lum(t.paper) < 0.45 };
+}
+let look = currentLook();
+let lookKey = "";
+function applyLook() {
+  look = currentLook();
+  root.style.setProperty("--paper", look.paper);
+  root.style.setProperty("--ink", look.ink);
+  root.style.setProperty("--accent", look.accent);
+  root.style.setProperty("--on-accent", lum(look.accent) > 0.55 ? "#141414" : "#ffffff");
+  root.style.setProperty("--danger", look.dark ? "#ff8a80" : "#b3261e");
+  root.style.colorScheme = look.dark ? "dark" : "light";
+  root.style.setProperty("--gap", S.gap + "px");
+  $("#dim").style.opacity = S.dim;
+  applyPattern();
+  const key = [look.paper, look.ink, look.recolor, S.weight].join("|");
+  if (key !== lookKey) { lookKey = key; Reader.rethemeAll(); }
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => S.theme === "auto" && applyLook());
+new MutationObserver(() => S.theme === "auto" && applyLook()).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+const SPRIGS = (() => {
+  const sprig = (x, y, rot, sc) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${sc})" fill="none" stroke="#000" stroke-width="1.1" stroke-linecap="round"><path d="M0 10 C 1 3, -1 -4, 0 -11"/><path d="M0 4 C 3 2, 6 2, 7 -1 C 4 -2, 1 0, 0 4Z" fill="#000" stroke="none"/><path d="M0 -2 C -3 -4, -6 -4, -7 -7 C -4 -8, -1 -6, 0 -2Z" fill="#000" stroke="none"/><circle cx="0" cy="-13" r="2.4" fill="#000" stroke="none"/></g>`;
+  const wrap = (fn, x, y) => { let o = ""; for (const dx of [-100, 0, 100]) for (const dy of [-100, 0, 100]) { const px = x + dx, py = y + dy; if (px > -20 && px < 120 && py > -20 && py < 120) o += fn(px, py); } return o; };
+  const dot = (x, y, rr) => wrap((a, b) => `<circle cx="${a}" cy="${b}" r="${rr}" fill="#000"/>`, x, y);
+  const svg = wrap((x, y) => sprig(x, y, -18, 1.1), 22, 28) + wrap((x, y) => sprig(x, y, 24, 0.9), 74, 70) + wrap((x, y) => sprig(x, y, 8, 0.7), 78, 18) +
+    dot(48, 50, 1) + dot(14, 74, 0.9) + dot(54, 88, 0.8) + dot(94, 46, 0.8);
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${svg}</svg>`)}")`;
+})();
+function applyPattern() {
+  const on = S.pattern === "sprigs";
+  root.style.setProperty("--pattern", on ? SPRIGS : "none");
+  root.style.setProperty("--pat-strength", on ? S.patStrength : 0);
+  $$("#patternSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pat === (on ? "sprigs" : "off"))));
+  $("#patStrengthRow").hidden = !on;
+}
+$$("#patternSeg button").forEach((b) => b.addEventListener("click", () => { S.pattern = b.dataset.pat; save(); applyPattern(); }));
+
+function recolor(ctx, w, h) {
+  if (!look.recolor) return;
+  const P = hexRgb(look.paper), I = hexRgb(look.ink);
+  const gamma = 1 / S.weight;
+  const lr = new Uint8ClampedArray(256), lg = new Uint8ClampedArray(256), lb = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    const t = Math.pow(i / 255, gamma);
+    lr[i] = I[0] + (P[0] - I[0]) * t; lg[i] = I[1] + (P[1] - I[1]) * t; lb[i] = I[2] + (P[2] - I[2]) * t;
+  }
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const L = (d[i] * 54 + d[i + 1] * 183 + d[i + 2] * 19) >> 8;
+    d[i] = lr[L]; d[i + 1] = lg[L]; d[i + 2] = lb[L];
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg, ms = 2800) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+/* ---------- sample PDF (public-domain text) ---------- */
+function makeSamplePdf() {
+  const P1 = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.|However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.|\"My dear Mr. Bennet,\" said his lady to him one day, \"have you heard that Netherfield Park is let at last?\"|Mr. Bennet replied that he had not.|\"But it is,\" returned she; \"for Mrs. Long has just been here, and she told me all about it.\"|Mr. Bennet made no answer.|\"Do you not want to know who has taken it?\" cried his wife impatiently.|\"You want to tell me, and I have no objection to hearing it.\"|This was invitation enough.|\"Why, my dear, you must know, Mrs. Long says that Netherfield is taken by a young man of large fortune from the north of England; that he came down on Monday in a chaise and four to see the place, and was so much delighted with it, that he agreed with Mr. Morris immediately; that he is to take possession before Michaelmas, and some of his servants are to be in the house by the end of next week.\"|\"What is his name?\"|\"Bingley.\"|\"Is he married or single?\"|\"Oh! Single, my dear, to be sure! A single man of large fortune; four or five thousand a year. What a fine thing for our girls!\"|\"How so? How can it affect them?\"|\"My dear Mr. Bennet,\" replied his wife, \"how can you be so tiresome! You must know that I am thinking of his marrying one of them.\"|\"Is that his design in settling here?\"|\"Design! Nonsense, how can you talk so! But it is very likely that he may fall in love with one of them, and therefore you must visit him as soon as he comes.\"|\"I see no occasion for that. You and the girls may go, or you may send them by themselves, which perhaps will be still better, for as you are as handsome as any of them, Mr. Bingley may like you the best of the party.\"|\"My dear, you flatter me. I certainly have had my share of beauty, but I do not pretend to be anything extraordinary now. When a woman has five grown-up daughters, she ought to give over thinking of her own beauty.\"|\"In such cases, a woman has not often much beauty to think of.\"|\"But, my dear, you must indeed go and see Mr. Bingley when he comes into the neighbourhood.\"|\"It is more than I engage for, I assure you.\"|\"But consider your daughters. Only think what an establishment it would be for one of them. Sir William and Lady Lucas are determined to go, merely on that account, for in general, you know, they visit no newcomers. Indeed you must go, for it will be impossible for us to visit him if you do not.\"|\"You are over-scrupulous, surely. I dare say Mr. Bingley will be very glad to see you; and I will send a few lines by you to assure him of my hearty consent to his marrying whichever he chooses of the girls; though I must throw in a good word for my little Lizzy.\"|\"I desire you will do no such thing. Lizzy is not a bit better than the others; and I am sure she is not half so handsome as Jane, nor half so good-humoured as Lydia. But you are always giving her the preference.\"|\"They have none of them much to recommend them,\" replied he; \"they are all silly and ignorant like other girls; but Lizzy has something more of quickness than her sisters.\"|\"Mr. Bennet, how can you abuse your own children in such a way? You take delight in vexing me. You have no compassion for my poor nerves.\"|\"You mistake me, my dear. I have a high respect for your nerves. They are my old friends. I have heard you mention them with consideration these last twenty years at least.\"|\"Ah, you do not know what I suffer.\"|\"But I hope you will get over it, and live to see many young men of four thousand a year come into the neighbourhood.\"|\"It will be no use to us, if twenty such should come, since you will not visit them.\"|\"Depend upon it, my dear, that when there are twenty, I will visit them all.\"|Mr. Bennet was so odd a mixture of quick parts, sarcastic humour, reserve, and caprice, that the experience of three-and-twenty years had been insufficient to make his wife understand his character. Her mind was less difficult to develop. She was a woman of mean understanding, little information, and uncertain temper. When she was discontented, she fancied herself nervous. The business of her life was to get her daughters married; its solace was visiting and news.";
+  const W = 432, H = 648, X = 60, LEAD = 16.5, CHARS = 64;
+  const esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const lines = [];
+  for (const para of P1.split("|")) {
+    const words = para.split(" "); let line = "", first = true;
+    for (const w of words) {
+      const lim = first ? CHARS - 4 : CHARS;
+      if ((line + " " + w).trim().length > lim) { lines.push({ t: line.trim(), indent: first }); line = w; first = false; }
+      else line = (line + " " + w).trim();
+    }
+    lines.push({ t: line.trim(), indent: first });
+  }
+  const pages = [];
+  const t = (font, size, x, y, s) => `BT /${font} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${esc(s)}) Tj ET\n`;
+  let i = 0, pageNo = 0;
+  while (i < lines.length) {
+    pageNo++;
+    let c = "", y;
+    if (pageNo === 1) {
+      c += t("F2", 22, X, 560, "Pride and Prejudice");
+      c += t("F3", 13, X, 536, "Jane Austen, 1813");
+      c += `0.4 w ${X} 516 m ${W - X} 516 l S\n`;
+      c += t("F2", 12, X, 488, "CHAPTER I");
+      y = 460;
+    } else y = H - 70;
+    while (i < lines.length && y > 72) {
+      const L = lines[i];
+      c += t("F1", 11.5, L.indent ? X + 14 : X, y, L.t);
+      y -= LEAD; i++;
+    }
+    c += t("F3", 9.5, W / 2 - 4, 40, String(pageNo));
+    pages.push(c);
+  }
+  pages.push(t("F2", 15, X, 420, "End of the sample") + t("F1", 11.5, X, 392, "Tap Library, then Add PDF, to read your own files.") + t("F1", 11.5, X, 374, "Try Look to change the page colours, Timer for a reading") + t("F1", 11.5, X, 356, "session, Notes to jot things down, and Sounds for rain,") + t("F1", 11.5, X, 338, "a fireplace or ocean waves while you read."));
+  const objs = [];
+  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>";
+  objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>";
+  objs[5] = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>";
+  const kids = [];
+  pages.forEach((c, k) => {
+    const po = 6 + k * 2, co = po + 1;
+    kids.push(po + " 0 R");
+    objs[po] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${co} 0 R >>`;
+    objs[co] = `<< /Length ${c.length} >>\nstream\n${c}endstream`;
+  });
+  objs[2] = `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`;
+  let out = "%PDF-1.4\n";
+  const offs = [];
+  for (let n = 1; n < objs.length; n++) { offs[n] = out.length; out += `${n} 0 obj\n${objs[n]}\nendobj\n`; }
+  const xref = out.length;
+  out += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for (let n = 1; n < objs.length; n++) out += String(offs[n]).padStart(10, "0") + " 00000 n \n";
+  out += `trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new TextEncoder().encode(out);
+}
+function sampleBook() {
+  return Object.assign({ id: SAMPLE_ID, title: "Pride and Prejudice", pages: 6, page: 1, readSeconds: 0, sample: true }, LS.get("sample", {}));
+}
+
+/* ---------- Reader ---------- */
+const viewer = $("#viewer"), pagesEl = $("#pages");
+const Reader = {
+  pdf: null, book: null, els: [], ratios: [], cur: 0, gen: 0, queue: [], busy: false, noteCounts: {},
+  pageWidth() {
+    const avail = Math.min(viewer.clientWidth - 20, 860);
+    return Math.max(120, Math.round(avail * S.zoom));
+  },
+  async open(book) {
+    this.close();
+    this.book = book;
+    $("#bookTitle").textContent = book.title;
+    pagesEl.innerHTML = '<div class="state-msg"><strong>Opening…</strong>' + escapeHtml(book.title) + "</div>";
+    let data;
+    try { data = await loadBytes(book); }
+    catch (e) {
+      pagesEl.innerHTML = '<div class="state-msg"><strong>This PDF isn\'t on this device</strong>It was too large to sync, so it only lives on the device you added it from. Add the file again here to read it.</div>';
+      return;
+    }
+    if (this.book !== book) return;
+    try {
+      this.pdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    } catch (e) {
+      pagesEl.innerHTML = '<div class="state-msg"><strong>Couldn\'t open this PDF</strong>The file may be damaged or password-protected.</div>';
+      return;
+    }
+    if (this.book !== book) return;
+    const n = this.pdf.numPages;
+    if (book.pages !== n) { book.pages = n; Store.patchBook(book.id, { pages: n }); }
+    const first = await this.pdf.getPage(1);
+    const vp = first.getViewport({ scale: 1 });
+    this.ratios = new Array(n).fill(vp.height / vp.width);
+    this.build();
+    await refreshNotes();
+    const target = Math.min(Math.max(1, book.page || 1), n) - 1;
+    this.scrollTo(target, false);
+    S.lastBook = book.id; save();
+    Store.patchBook(book.id, { openedAt: Date.now() });
+    Timer.syncBookTime();
+    requestWake();
+  },
+  close() {
+    this.gen++;
+    if (this.pdf) { try { this.pdf.destroy(); } catch {} }
+    this.pdf = null; this.els = []; this.queue = []; this.cur = 0;
+    pagesEl.innerHTML = "";
+  },
+  build() {
+    const w = this.pageWidth();
+    const frag = document.createDocumentFragment();
+    this.els = this.ratios.map((r, i) => {
+      const el = document.createElement("div");
+      el.className = "pg";
+      el.style.width = w + "px"; el.style.height = Math.round(w * r) + "px";
+      el.dataset.i = i;
+      el.innerHTML = '<div class="num">' + (i + 1) + "</div>";
+      frag.appendChild(el);
+      return el;
+    });
+    pagesEl.innerHTML = ""; pagesEl.appendChild(frag);
+    this.gen++;
+    this.drawMarks();
+    this.update();
+  },
+  relayout() {
+    if (!this.pdf) return;
+    const keep = this.cur;
+    const w = this.pageWidth();
+    this.gen++;
+    this.els.forEach((el, i) => {
+      el.style.width = w + "px"; el.style.height = Math.round(w * this.ratios[i]) + "px";
+      this.free(i);
+    });
+    this.scrollTo(keep, false);
+  },
+  rethemeAll() {
+    if (!this.pdf) return;
+    this.gen++;
+    this.els.forEach((_, i) => { if (this.els[i].dataset.state === "done") this.els[i].dataset.state = "stale"; });
+    this.update();
+  },
+  free(i) {
+    const el = this.els[i]; if (!el) return;
+    const c = el.querySelector("canvas");
+    if (c) { c.width = 0; c.height = 0; c.remove(); }
+    if (!el.querySelector(".num")) el.insertAdjacentHTML("afterbegin", '<div class="num">' + (i + 1) + "</div>");
+    delete el.dataset.state;
+  },
+  scrollTo(i, smooth) {
+    const el = this.els[i]; if (!el) return;
+    viewer.scrollTo({ top: el.offsetTop - 66 - (parseFloat(getComputedStyle(viewer).paddingTop) - 66) - 8, behavior: smooth ? "smooth" : "auto" });
+    this.cur = i; this.update();
+  },
+  currentIndex() {
+    const y = viewer.scrollTop + viewer.clientHeight * 0.35;
+    let lo = 0, hi = this.els.length - 1, ans = 0;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (this.els[m].offsetTop <= y) { ans = m; lo = m + 1; } else hi = m - 1; }
+    return ans;
+  },
+  update() {
+    if (!this.pdf || !this.els.length) return;
+    const i = this.currentIndex();
+    if (i !== this.cur) { this.cur = i; saveProgressSoon(); }
+    $("#pagePill").textContent = (this.cur + 1) + " / " + this.els.length;
+    $("#noteFor").textContent = "Saves to page " + (this.cur + 1);
+    const want = [];
+    for (let k = this.cur - 1; k <= this.cur + 2; k++) if (k >= 0 && k < this.els.length) want.push(k);
+    want.sort((a, b) => Math.abs(a - this.cur) - Math.abs(b - this.cur));
+    for (const k of want) { const st = this.els[k].dataset.state; if (st !== "done" && st !== "busy") this.enqueue(k); }
+    this.els.forEach((el, k) => { if (Math.abs(k - this.cur) > 4 && el.dataset.state === "done") this.free(k); });
+  },
+  enqueue(i) { if (!this.queue.includes(i)) this.queue.push(i); this.pump(); },
+  async pump() {
+    if (this.busy) return;
+    this.busy = true;
+    while (this.queue.length) {
+      const i = this.queue.shift();
+      if (Math.abs(i - this.cur) > 4) continue;
+      try { await this.render(i); } catch (e) { /* keep going */ }
+    }
+    this.busy = false;
+  },
+  async render(i) {
+    const el = this.els[i]; if (!el || !this.pdf) return;
+    const gen = this.gen, pdf = this.pdf;
+    el.dataset.state = "busy";
+    const page = await pdf.getPage(i + 1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const ratio = vp1.height / vp1.width;
+    if (Math.abs(ratio - this.ratios[i]) > 0.001) {
+      const before = el.offsetHeight;
+      this.ratios[i] = ratio;
+      el.style.height = Math.round(parseFloat(el.style.width) * ratio) + "px";
+      if (el.offsetTop < viewer.scrollTop) viewer.scrollTop += el.offsetHeight - before;
+    }
+    const cssW = parseFloat(el.style.width);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    let scale = (cssW / vp1.width) * dpr;
+    const maxPx = 5e6;
+    if (vp1.width * vp1.height * scale * scale > maxPx) scale = Math.sqrt(maxPx / (vp1.width * vp1.height));
+    const vp = page.getViewport({ scale });
+    const c = document.createElement("canvas");
+    c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    page.cleanup();
+    if (gen !== this.gen || pdf !== this.pdf) { c.width = 0; if (el.dataset.state === "busy") delete el.dataset.state; if (pdf === this.pdf) this.enqueue(i); return; }
+    recolor(ctx, c.width, c.height);
+    const old = el.querySelector("canvas"); if (old) { old.width = 0; old.remove(); }
+    const num = el.querySelector(".num"); if (num) num.remove();
+    el.prepend(c);
+    el.dataset.state = "done";
+  },
+  drawMarks() {
+    this.els.forEach((el, i) => {
+      const m = el.querySelector(".mark");
+      const has = this.noteCounts[i + 1];
+      if (has && !m) {
+        const b = document.createElement("button");
+        b.className = "mark"; b.setAttribute("aria-label", "Notes on page " + (i + 1));
+        b.addEventListener("click", (e) => { e.stopPropagation(); openSheet("notes"); });
+        el.appendChild(b);
+      } else if (!has && m) m.remove();
+    });
+  },
+};
+let scrollRaf = 0;
+viewer.addEventListener("scroll", () => { if (!scrollRaf) scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; Reader.update(); }); }, { passive: true });
+let resizeT;
+window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => Reader.relayout(), 200); });
+
+let progT;
+function saveProgressSoon() {
+  clearTimeout(progT);
+  progT = setTimeout(() => { if (Reader.book) { Reader.book.page = Reader.cur + 1; Store.patchBook(Reader.book.id, { page: Reader.cur + 1 }); } }, 1500);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    if (Reader.book) Store.patchBook(Reader.book.id, { page: Reader.cur + 1, readSeconds: Reader.book.readSeconds || 0 });
+  } else requestWake();
+});
+
+/* tap page to toggle toolbars */
+let downAt = null;
+viewer.addEventListener("pointerdown", (e) => { downAt = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+viewer.addEventListener("pointerup", (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+  if (moved < 8 && Date.now() - downAt.t < 350 && e.target.closest(".pg")) document.body.classList.toggle("immersive");
+  downAt = null;
+});
+
+let wakeLock = null;
+async function requestWake() {
+  try { if (navigator.wakeLock && !wakeLock && Reader.pdf) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+}
+
+/* ---------- loading PDF bytes ---------- */
+async function loadBytes(book) {
+  if (book.id === SAMPLE_ID) return makeSamplePdf();
+  if (book.assetId) {
+    const cached = await IDB.get("asset:" + book.assetId);
+    if (cached) return new Uint8Array(cached);
+    const r = await fetch("/_blob/" + book.assetId);
+    if (!r.ok) throw new Error("missing");
+    const buf = await r.arrayBuffer();
+    IDB.put("asset:" + book.assetId, buf.slice(0));
+    return new Uint8Array(buf);
+  }
+  const local = await IDB.get("local:" + book.id);
+  if (local) return new Uint8Array(local);
+  throw new Error("missing");
+}
+
+/* ---------- Library ---------- */
+let books = [];
+async function refreshLibrary() {
+  books = await Store.listBooks();
+  books.sort((a, b) => (b.openedAt || b.addedAt || 0) - (a.openedAt || a.addedAt || 0));
+  renderLibrary();
+}
+function fmtDur(sec) {
+  sec = Math.round(sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  if (h) return h + "h " + m + "m";
+  if (m) return m + " min";
+  return sec ? "under a minute" : "";
+}
+function renderLibrary() {
+  const list = $("#bookList");
+  list.innerHTML = "";
+  const all = books.concat(LS.get("hideSample", false) ? [] : [sampleBook()]);
+  if (!books.length) {
+    const e = document.createElement("div");
+    e.className = "empty-lib";
+    e.innerHTML = "<strong>No PDFs of your own yet</strong><br>Tap Add PDF to pick one from Files, iCloud Drive or Downloads.";
+    list.appendChild(e);
+  }
+  for (const b of all) {
+    const card = document.createElement("div");
+    card.className = "book" + (Reader.book && Reader.book.id === b.id ? " current" : "");
+    const pct = b.pages ? Math.round(((b.page || 1) / b.pages) * 100) : 0;
+    const meta = [b.pages ? "Page " + (b.page || 1) + " of " + b.pages : "", b.readSeconds ? "read " + fmtDur(b.readSeconds) : ""].filter(Boolean).join(" · ");
+    const chip = b.sample ? '<span class="chip">Sample</span>' : (Store.cloud && !b.assetId ? '<span class="chip">This device</span>' : "");
+    card.innerHTML =
+      '<div class="spine" aria-hidden="true"></div>' +
+      '<button class="book-main"><span class="t"></span><span class="m"></span><span class="progress"><i style="width:' + pct + '%"></i></span></button>' +
+      '<button class="link-btn">Remove</button>';
+    card.querySelector(".spine").textContent = (b.title || "?").trim().charAt(0).toUpperCase();
+    const t = card.querySelector(".t"); t.textContent = b.title; t.insertAdjacentHTML("beforeend", chip);
+    card.querySelector(".m").textContent = meta || "Not started";
+    card.querySelector(".book-main").addEventListener("click", () => { showLibrary(false); if (!Reader.book || Reader.book.id !== b.id) Reader.open(b); });
+    const rm = card.querySelector(".link-btn");
+    armButton(rm, "Tap again to remove", async () => {
+      if (b.sample) { LS.set("hideSample", true); }
+      else { try { await Store.deleteBook(b); } catch { toast("Couldn't remove it. Try again."); return; } }
+      if (Reader.book && Reader.book.id === b.id) { Reader.close(); Reader.book = null; $("#bookTitle").textContent = "Sprig"; $("#pagePill").textContent = "–"; }
+      toast("Removed " + b.title);
+      refreshLibrary();
+    });
+    list.appendChild(card);
+  }
+  $("#libFoot").textContent = Store.cloud
+    ? "Your PDFs, reading progress and notes are saved to your Claude account, so they're here on any device. Files over 20 MB stay on the device you added them from."
+    : "Your PDFs, progress and notes are saved on this phone. Use Copy all in Notes to keep a backup of your notes.";
+  $("#libClose").hidden = !Reader.book;
+}
+function showLibrary(on) {
+  $("#library").hidden = !on;
+  if (on) refreshLibrary();
+}
+function armButton(btn, armedText, action) {
+  const orig = btn.textContent; let t;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (btn.classList.contains("armed")) { clearTimeout(t); btn.classList.remove("armed"); btn.textContent = orig; action(); return; }
+    btn.classList.add("armed"); btn.textContent = armedText;
+    t = setTimeout(() => { btn.classList.remove("armed"); btn.textContent = orig; }, 3000);
+  });
+}
+$("#libBtn").addEventListener("click", () => showLibrary(true));
+$("#libClose").addEventListener("click", () => showLibrary(false));
+$("#fileInput").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const label = $("#addLabel");
+  label.style.opacity = ".6"; label.style.pointerEvents = "none";
+  try {
+    const buf = await f.arrayBuffer();
+    let pages = 0, title = f.name.replace(/\.pdf$/i, "");
+    try {
+      const d = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false }).promise;
+      pages = d.numPages;
+      try { const md = await d.getMetadata(); const mt = md && md.info && md.info.Title; if (mt && mt.trim().length > 2 && !/^untitled|^microsoft/i.test(mt)) title = mt.trim(); } catch {}
+      d.destroy();
+    } catch { toast("That file doesn't look like a PDF I can open."); return; }
+    const book = { id: uid("b"), title, pages, page: 1, readSeconds: 0, addedAt: Date.now(), openedAt: Date.now(), assetId: null, size: f.size };
+    let synced = false;
+    if (Store.cloud && Store.assets && f.size <= MAX_UPLOAD) {
+      toast("Saving " + title + "…", 8000);
+      try {
+        const r = await Store.assets.upload(new Blob([buf], { type: "application/pdf" }), { type: "application/pdf" });
+        book.assetId = r.id; synced = true;
+        await IDB.put("asset:" + r.id, buf.slice(0));
+      } catch (err) { /* fall back to local */ }
+    }
+    if (!book.assetId) await IDB.put("local:" + book.id, buf.slice(0));
+    await Store.saveBook(book);
+    toast(synced || !Store.cloud ? "Added " + title : "Added " + title + " to this device only (files over 20 MB don't sync)", 4000);
+    showLibrary(false);
+    Reader.open(book);
+  } catch (err) {
+    toast("Couldn't add that file. Try again.");
+  } finally { label.style.opacity = ""; label.style.pointerEvents = ""; }
+});
+
+/* ---------- Sheets ---------- */
+let openName = null;
+function openSheet(name) {
+  closeSheet();
+  openName = name;
+  if (name === "notes") renderNotes();
+  if (name === "goto") prepGoto();
+  if (name === "timer") Timer.render();
+  $("#sheet-" + name).classList.add("show");
+  $("#scrim").classList.add("show");
+  $$(".tool").forEach((b) => b.classList.toggle("on", b.dataset.sheet === name));
+}
+function closeSheet() {
+  if (!openName) return;
+  $("#sheet-" + openName).classList.remove("show");
+  $("#scrim").classList.remove("show");
+  openName = null;
+  $$(".tool").forEach((b) => b.classList.remove("on"));
+  $("#toolSounds").classList.toggle("on", Sound.anyPlaying());
+}
+$$(".tool").forEach((b) => b.addEventListener("click", () => (openName === b.dataset.sheet ? closeSheet() : openSheet(b.dataset.sheet))));
+$("#scrim").addEventListener("click", closeSheet);
+$$("[data-close]").forEach((b) => b.addEventListener("click", closeSheet));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+$("#pagePill").addEventListener("click", () => Reader.pdf && openSheet("goto"));
+
+/* ---------- Look sheet ---------- */
+function renderSwatches() {
+  const box = $("#swatches"); box.innerHTML = "";
+  for (const t of THEMES) {
+    const b = document.createElement("button");
+    b.className = "sw"; b.setAttribute("aria-pressed", String(S.theme === t.id));
+    const face = document.createElement("span"); face.className = "face";
+    if (t.id === "auto") { face.classList.add("auto"); face.innerHTML = "<span>Aa</span>"; }
+    else {
+      const c = t.id === "custom" ? S.custom : t;
+      face.style.background = c.paper; face.style.color = c.ink; face.textContent = "Aa";
+      if (t.id === "custom") face.style.borderStyle = "dashed";
+    }
+    b.appendChild(face); b.appendChild(document.createTextNode(t.name));
+    b.addEventListener("click", () => { S.theme = t.id; save(); applyLook(); renderSwatches(); });
+    box.appendChild(b);
+  }
+  $("#customBox").hidden = S.theme !== "custom";
+  $("#cPaper").value = S.custom.paper; $("#cInk").value = S.custom.ink; $("#cAccent").value = S.custom.accent;
+}
+["cPaper", "cInk", "cAccent"].forEach((id) => {
+  const key = { cPaper: "paper", cInk: "ink", cAccent: "accent" }[id];
+  $("#" + id).addEventListener("input", (e) => { S.custom[key] = e.target.value; save(); applyLook(); });
+  $("#" + id).addEventListener("change", renderSwatches);
+});
+function bindSlider(id, key, fmt, after) {
+  const r = $("#" + id), o = $("#" + id + "Out");
+  r.value = S[key]; o.textContent = fmt(S[key]);
+  r.addEventListener("input", () => { S[key] = parseFloat(r.value); o.textContent = fmt(S[key]); after && after(); save(); });
+}
+let weightT;
+bindSlider("weight", "weight", (v) => (v === 1 ? "Normal" : v > 1 ? "+" + Math.round((v - 1) * 100) + "%" : "−" + Math.round((1 - v) * 100) + "%"), () => { clearTimeout(weightT); weightT = setTimeout(applyLook, 180); });
+bindSlider("dimR", "dim", (v) => Math.round(v * 100) + "%", () => { $("#dim").style.opacity = S.dim; });
+let zoomT;
+bindSlider("zoom", "zoom", (v) => Math.round(v * 100) + "%", () => { clearTimeout(zoomT); zoomT = setTimeout(() => Reader.relayout(), 220); });
+bindSlider("patStrength", "patStrength", (v) => Math.round(v * 100) + "%", applyPattern);
+bindSlider("gap", "gap", (v) => v + "px", () => root.style.setProperty("--gap", S.gap + "px"));
+
+/* ---------- Go to page ---------- */
+function prepGoto() {
+  const n = Reader.els.length || 1;
+  const r = $("#gotoRange"), num = $("#gotoNum");
+  r.max = n; num.max = n; r.value = Reader.cur + 1; num.value = Reader.cur + 1;
+  $("#gotoOf").textContent = "of " + n;
+}
+$("#gotoRange").addEventListener("input", (e) => { $("#gotoNum").value = e.target.value; });
+$("#gotoNum").addEventListener("input", (e) => { $("#gotoRange").value = e.target.value; });
+function doGoto() {
+  const n = Reader.els.length; let p = parseInt($("#gotoNum").value, 10);
+  if (!p || p < 1) p = 1; if (p > n) p = n;
+  closeSheet(); Reader.scrollTo(p - 1, false); saveProgressSoon();
+}
+$("#gotoBtn").addEventListener("click", doGoto);
+$("#gotoNum").addEventListener("keydown", (e) => { if (e.key === "Enter") doGoto(); });
+
+/* ---------- Notes ---------- */
+let notes = [];
+async function refreshNotes() {
+  if (!Reader.book) { notes = []; } else notes = await Store.listNotes(Reader.book.id);
+  notes.sort((a, b) => a.page - b.page || a.createdAt - b.createdAt);
+  Reader.noteCounts = {};
+  notes.forEach((n) => { Reader.noteCounts[n.page - 1 + 1] = (Reader.noteCounts[n.page] || 0) + 1; });
+  Reader.drawMarks();
+  const badge = $("#noteBadge"); badge.hidden = !notes.length; badge.textContent = notes.length;
+  if (openName === "notes") renderNotes();
+}
+function renderNotes() {
+  const list = $("#noteList"); list.innerHTML = "";
+  if (!Reader.book) { list.innerHTML = '<p class="hint">Open a book to take notes.</p>'; return; }
+  if (!notes.length) { list.innerHTML = '<p class="hint">No notes in this book yet. Anything you save is tied to the page you\'re on, so you can jump back to it later.</p>'; return; }
+  for (const n of notes) {
+    const card = document.createElement("div"); card.className = "note";
+    card.innerHTML = '<div class="meta"><button class="pg-link"></button><span class="when"></span><span class="sp"></span><button class="link-btn edit">Edit</button><button class="link-btn del">Delete</button></div><div class="text"></div>';
+    card.querySelector(".pg-link").textContent = "p. " + n.page;
+    card.querySelector(".when").textContent = new Date(n.updatedAt || n.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    card.querySelector(".text").textContent = n.text;
+    card.querySelector(".pg-link").addEventListener("click", () => { closeSheet(); Reader.scrollTo(n.page - 1, true); });
+    card.querySelector(".edit").addEventListener("click", () => {
+      const tx = card.querySelector(".text");
+      const ta = document.createElement("textarea"); ta.value = n.text; ta.id = "edit-" + n.id; ta.setAttribute("aria-label", "Edit note");
+      tx.replaceWith(ta); ta.focus();
+      const btn = card.querySelector(".edit"); btn.textContent = "Save";
+      btn.onclick = async (e) => {
+        e.stopImmediatePropagation();
+        const v = ta.value.trim(); if (!v) return;
+        n.text = v; n.updatedAt = Date.now();
+        try { await Store.saveNote(Reader.book.id, n); toast("Note saved"); } catch { toast("Couldn't save. Try again."); }
+        refreshNotes();
+      };
+    }, { once: true });
+    armButton(card.querySelector(".del"), "Tap again", async () => {
+      try { await Store.deleteNote(Reader.book.id, n.id); toast("Note deleted"); } catch { toast("Couldn't delete. Try again."); }
+      refreshNotes();
+    });
+    list.appendChild(card);
+  }
+}
+$("#noteSave").addEventListener("click", async () => {
+  const ta = $("#noteText"), text = ta.value.trim();
+  if (!text || !Reader.book) return;
+  const n = { id: uid("n"), page: Reader.cur + 1, text, createdAt: Date.now(), updatedAt: Date.now() };
+  $("#noteSave").disabled = true;
+  try { await Store.saveNote(Reader.book.id, n); ta.value = ""; LS.set("draft", ""); toast("Saved to page " + n.page); }
+  catch { toast("Couldn't save the note. Try again."); }
+  $("#noteSave").disabled = false;
+  refreshNotes();
+});
+$("#noteText").value = LS.get("draft", "");
+$("#noteText").addEventListener("input", (e) => LS.set("draft", e.target.value));
+$("#copyNotes").addEventListener("click", () => {
+  if (!notes.length) { toast("No notes to copy yet"); return; }
+  const txt = (Reader.book ? Reader.book.title + "\n\n" : "") + notes.map((n) => "p. " + n.page + "\n" + n.text).join("\n\n");
+  try {
+    navigator.clipboard.writeText(txt).then(() => toast("Notes copied"), () => fallbackCopy(txt));
+  } catch { fallbackCopy(txt); }
+});
+function fallbackCopy(txt) {
+  const ta = $("#noteText"); const prev = ta.value; ta.value = txt; ta.select();
+  toast("Selected. Use Copy from the menu.", 3500);
+  setTimeout(() => { if (ta.value === txt) ta.value = prev; }, 15000);
+}
+
+/* ---------- Audio: generated ambience ---------- */
+const Sound = {
+  ac: null, master: null, tracks: {}, ownEl: null, ownName: "",
+  ctx() {
+    if (!this.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ac = new AC();
+      this.master = this.ac.createGain(); this.master.gain.value = S.master; this.master.connect(this.ac.destination);
+    }
+    if (this.ac.state !== "running") this.ac.resume();
+    return this.ac;
+  },
+  noise(sec, kind) {
+    const ac = this.ac, n = Math.floor(ac.sampleRate * sec), b = ac.createBuffer(2, n, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      let last = 0, b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < n; i++) {
+        const w = Math.random() * 2 - 1;
+        if (kind === "brown") { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else if (kind === "pink") {
+          b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+          b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+          d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926;
+        } else d[i] = w;
+      }
+      // crossfade ends so loops are seamless
+      const f = Math.floor(ac.sampleRate * 0.05);
+      for (let i = 0; i < f; i++) { const t = i / f; d[n - f + i] = d[n - f + i] * (1 - t) + d[i] * t; }
+    }
+    return b;
+  },
+  src(buf) { const s = this.ac.createBufferSource(); s.buffer = buf; s.loop = true; return s; },
+  filt(type, freq, q) { const f = this.ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q; return f; },
+  build: {
+    rain(S0) {
+      const ac = S0.ac, out = ac.createGain();
+      const s1 = S0.src(S0.noise(9, "pink"));
+      s1.connect(S0.filt("highpass", 450)).connect(S0.filt("lowpass", 7500)).connect(out);
+      // droplets
+      const sec = 7, n = ac.sampleRate * sec, b = ac.createBuffer(2, n, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = b.getChannelData(ch);
+        for (let k = 0; k < 520; k++) {
+          const at = Math.floor(Math.random() * (n - 2000)), amp = Math.random() * 0.35 + 0.05, len = 120 + Math.random() * 500;
+          for (let j = 0; j < len; j++) d[at + j] += (Math.random() * 2 - 1) * amp * Math.exp(-j / (len / 5));
+        }
+      }
+      const s2 = S0.src(b); const g2 = ac.createGain(); g2.gain.value = 0.45;
+      s2.connect(S0.filt("bandpass", 3200, 0.7)).connect(g2).connect(out);
+      return { out, srcs: [s1, s2] };
+    },
+    fire(S0) {
+      const ac = S0.ac, out = ac.createGain();
+      const s1 = S0.src(S0.noise(8, "brown")); const g1 = ac.createGain(); g1.gain.value = 0.9;
+      s1.connect(S0.filt("lowpass", 420)).connect(g1).connect(out);
+      const sec = 11, n = ac.sampleRate * sec, b = ac.createBuffer(2, n, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = b.getChannelData(ch);
+        let k = 0;
+        while (k < n - 4000) {
+          const burst = Math.random() < 0.12;
+          const amp = (burst ? 0.9 : 0.35) * (0.3 + Math.random()), len = 40 + Math.random() * (burst ? 900 : 260);
+          for (let j = 0; j < len; j++) d[k + j] += (Math.random() * 2 - 1) * amp * Math.exp(-j / (len / 6));
+          k += Math.floor(ac.sampleRate * (0.02 + Math.random() * Math.random() * 0.5));
+        }
+      }
+      const s2 = S0.src(b); const g2 = ac.createGain(); g2.gain.value = 0.5;
+      s2.connect(S0.filt("highpass", 1400)).connect(g2).connect(out);
+      return { out, srcs: [s1, s2] };
+    },
+    ocean(S0) {
+      const ac = S0.ac, out = ac.createGain();
+      const sec = 24, buf = S0.noise(sec, "brown");
+      for (let ch = 0; ch < 2; ch++) {
+        const d = buf.getChannelData(ch), sr = ac.sampleRate, off = ch * 0.6;
+        for (let i = 0; i < d.length; i++) {
+          const t = i / sr;
+          const p1 = Math.pow(Math.sin(Math.PI * (t + off) / 8), 2), p2 = Math.pow(Math.sin(Math.PI * (t + 3 + off) / 6), 2);
+          d[i] *= 0.15 + 0.85 * Math.pow(0.65 * p1 + 0.35 * p2, 1.6);
+        }
+      }
+      const s = S0.src(buf); const g = ac.createGain(); g.gain.value = 1.4;
+      s.connect(S0.filt("lowpass", 1100)).connect(g).connect(out);
+      return { out, srcs: [s] };
+    },
+    brown(S0) {
+      const ac = S0.ac, out = ac.createGain();
+      const s = S0.src(S0.noise(10, "brown"));
+      s.connect(S0.filt("lowpass", 900)).connect(out);
+      return { out, srcs: [s] };
+    },
+  },
+  play(id) {
+    this.ctx();
+    if (id === "own") return this.playOwn();
+    if (this.tracks[id]) return;
+    const t = this.build[id](this);
+    t.out.gain.value = 0;
+    t.out.connect(this.master);
+    t.srcs.forEach((s) => s.start());
+    t.out.gain.setTargetAtTime(S.vol[id], this.ac.currentTime, 0.4);
+    this.tracks[id] = t;
+  },
+  stop(id) {
+    if (id === "own") { if (this.ownEl) this.ownEl.pause(); return; }
+    const t = this.tracks[id]; if (!t) return;
+    delete this.tracks[id];
+    t.out.gain.setTargetAtTime(0, this.ac.currentTime, 0.25);
+    setTimeout(() => { t.srcs.forEach((s) => { try { s.stop(); } catch {} }); t.out.disconnect(); }, 1500);
+  },
+  playing(id) { return id === "own" ? !!(this.ownEl && !this.ownEl.paused) : !!this.tracks[id]; },
+  anyPlaying() { return ["rain", "fire", "ocean", "brown", "own"].some((k) => this.playing(k)); },
+  setVol(id, v) {
+    S.vol[id] = v; save();
+    if (id === "own") { if (this.ownEl) this.ownEl.volume = v * S.master; return; }
+    const t = this.tracks[id]; if (t) t.out.gain.setTargetAtTime(v, this.ac.currentTime, 0.1);
+  },
+  setMaster(v) {
+    S.master = v; save();
+    if (this.master) this.master.gain.setTargetAtTime(v, this.ac.currentTime, 0.1);
+    if (this.ownEl) this.ownEl.volume = S.vol.own * v;
+  },
+  async loadOwn(file) {
+    if (!this.ownEl) { this.ownEl = new Audio(); this.ownEl.loop = true; this.ownEl.addEventListener("play", renderSounds); this.ownEl.addEventListener("pause", renderSounds); }
+    if (this.ownEl.src) URL.revokeObjectURL(this.ownEl.src);
+    this.ownEl.src = URL.createObjectURL(file);
+    this.ownName = file.name || "Your audio";
+  },
+  async playOwn() {
+    if (!this.ownEl || !this.ownEl.src) {
+      const saved = await IDB.get("own-audio");
+      if (saved && saved.blob) await this.loadOwn(new File([saved.blob], saved.name, { type: saved.blob.type }));
+      else { $("#ownFile").click(); return; }
+    }
+    this.ownEl.volume = S.vol.own * S.master;
+    try { await this.ownEl.play(); } catch { toast("Couldn't play that file."); }
+  },
+  fadeOutAll() {
+    if (!this.anyPlaying()) return;
+    if (this.master) this.master.gain.setTargetAtTime(0, this.ac.currentTime, 2.5);
+    const el = this.ownEl; let k = 0;
+    const iv = setInterval(() => { k++; if (el) el.volume = Math.max(0, S.vol.own * S.master * (1 - k / 20)); if (k >= 20) clearInterval(iv); }, 400);
+    setTimeout(() => {
+      Object.keys(this.tracks).forEach((id) => this.stop(id));
+      if (el) el.pause();
+      if (this.master) this.master.gain.setTargetAtTime(S.master, this.ac.currentTime, 0.05);
+      renderSounds();
+    }, 9000);
+  },
+};
+const SOUNDS = [
+  { id: "rain", name: "Rain", sub: "Steady rain on a window" },
+  { id: "fire", name: "Fireplace", sub: "Low rumble and crackle" },
+  { id: "ocean", name: "Ocean", sub: "Slow waves on a shore" },
+  { id: "brown", name: "Brown noise", sub: "Deep, even hush" },
+  { id: "own", name: "Your music", sub: "Pick an audio file" },
+];
+const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const STOP_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+function renderSounds() {
+  const box = $("#soundList");
+  if (!box.children.length) {
+    for (const s of SOUNDS) {
+      const row = document.createElement("div"); row.className = "sound"; row.dataset.id = s.id;
+      row.innerHTML = '<button class="play"></button><div class="info"><div class="name"><span></span><small></small></div><input type="range" min="0" max="1" step="0.05"></div>';
+      row.querySelector(".name span").textContent = s.name;
+      row.querySelector(".play").setAttribute("aria-label", "Play " + s.name);
+      const r = row.querySelector("input"); r.id = "vol-" + s.id; r.setAttribute("aria-label", s.name + " volume"); r.value = S.vol[s.id];
+      r.addEventListener("input", () => Sound.setVol(s.id, parseFloat(r.value)));
+      row.querySelector(".play").addEventListener("click", () => { Sound.playing(s.id) ? Sound.stop(s.id) : Sound.play(s.id); setTimeout(renderSounds, 30); });
+      if (s.id === "own") {
+        const lab = document.createElement("label"); lab.className = "btn small ghost file-btn"; lab.style.alignSelf = "start"; lab.style.marginLeft = "-12px";
+        lab.innerHTML = 'Choose file<input type="file" id="ownFile" accept="audio/*" aria-label="Choose an audio file">';
+        row.querySelector(".info").appendChild(lab);
+        lab.querySelector("input").addEventListener("change", async (e) => {
+          const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+          await Sound.loadOwn(f);
+          IDB.put("own-audio", { blob: f, name: f.name });
+          Sound.ctx(); Sound.playOwn(); renderSounds();
+        });
+      }
+      box.appendChild(row);
+    }
+  }
+  for (const row of box.children) {
+    const id = row.dataset.id, on = Sound.playing(id);
+    row.classList.toggle("playing", on);
+    row.querySelector(".play").innerHTML = on ? STOP_SVG : PLAY_SVG;
+    const s = SOUNDS.find((x) => x.id === id);
+    row.querySelector("small").textContent = id === "own" && Sound.ownName ? Sound.ownName : s.sub;
+  }
+  if (openName !== "sounds") $("#toolSounds").classList.toggle("on", Sound.anyPlaying());
+}
+$("#master").value = S.master; $("#masterOut").textContent = Math.round(S.master * 100) + "%";
+$("#master").addEventListener("input", (e) => { const v = parseFloat(e.target.value); $("#masterOut").textContent = Math.round(v * 100) + "%"; Sound.setMaster(v); });
+$("#stopAll").addEventListener("click", () => { ["rain", "fire", "ocean", "brown", "own"].forEach((k) => Sound.stop(k)); setTimeout(renderSounds, 30); });
+IDB.get("own-audio").then((v) => { if (v && v.name) { Sound.ownName = v.name; renderSounds(); } });
+
+function chime() {
+  try {
+    const ac = Sound.ctx(), t0 = ac.currentTime + 0.05;
+    [[659.25, 0], [880, 0.35], [1318.5, 0.7]].forEach(([f, d]) => {
+      [1, 2.01, 3.02].forEach((h, k) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = f * h; o.type = "sine";
+        g.gain.setValueAtTime(0, t0 + d); g.gain.linearRampToValueAtTime(0.18 / (k + 1), t0 + d + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 2.4);
+        o.connect(g).connect(ac.destination); o.start(t0 + d); o.stop(t0 + d + 2.5);
+      });
+    });
+  } catch {}
+}
+
+/* ---------- Timer ---------- */
+const Timer = {
+  running: false, startedAt: 0, base: 0, iv: null, finished: false,
+  get mode() { return S.timerMode; },
+  elapsed() { return this.base + (this.running ? (Date.now() - this.startedAt) / 1000 : 0); },
+  remaining() { return Math.max(0, S.timerMin * 60 - this.elapsed()); },
+  start() {
+    Sound.ctx();
+    if (this.finished) this.reset();
+    this.running = true; this.startedAt = Date.now();
+    this.iv = setInterval(() => this.tick(), 250);
+    this.lastTick = Date.now();
+    this.render();
+  },
+  pause() {
+    this.base = this.elapsed(); this.running = false; clearInterval(this.iv);
+    this.flushBookTime(); this.render();
+  },
+  reset() {
+    this.running = false; clearInterval(this.iv); this.base = 0; this.finished = false;
+    this.flushBookTime(); $("#timerPill").classList.remove("done"); this.render();
+  },
+  tick() {
+    const now = Date.now();
+    if (Reader.book) Reader.book.readSeconds = (Reader.book.readSeconds || 0) + (now - this.lastTick) / 1000;
+    this.lastTick = now;
+    if (this.mode === "countdown" && this.remaining() <= 0) return this.finish();
+    if (Math.floor(now / 1000) % 30 === 0) this.flushBookTime();
+    this.render();
+  },
+  finish() {
+    this.base = S.timerMin * 60; this.running = false; this.finished = true; clearInterval(this.iv);
+    this.flushBookTime();
+    if (S.chime) chime();
+    if (S.fade) Sound.fadeOutAll();
+    $("#timerPill").classList.add("done");
+    toast("Time's up. You read for " + S.timerMin + " minutes.", 5000);
+    this.render();
+  },
+  flushBookTime() {
+    if (Reader.book) Store.patchBook(Reader.book.id, { readSeconds: Math.round(Reader.book.readSeconds || 0) });
+    this.syncBookTime();
+  },
+  syncBookTime() {
+    const b = Reader.book;
+    $("#bookTime").textContent = b ? "Time with the timer running is added to this book: " + (fmtDur(b.readSeconds) || "nothing yet") + " so far." : "";
+  },
+  fmt(s) { s = Math.ceil(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0"); },
+  render() {
+    const cd = this.mode === "countdown";
+    const shown = cd ? this.remaining() : Math.floor(this.elapsed());
+    const txt = this.fmt(shown);
+    $("#clock").textContent = txt;
+    $("#clockSub").textContent = this.finished ? "Time's up" : this.running ? (cd ? "Reading…" : "Counting up") : this.elapsed() > 0 ? "Paused" : "Ready";
+    $("#tStart").textContent = this.running ? "Pause" : this.elapsed() > 0 && !this.finished ? "Resume" : "Start";
+    const pill = $("#timerPill");
+    pill.hidden = !(this.running || this.elapsed() > 0);
+    pill.textContent = txt;
+    $("#durBox").hidden = !cd;
+    $$("#timerMode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === this.mode)));
+    $$("#durChips button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.m === S.timerMin)));
+    $("#toolTimer").classList.toggle("on", openName === "timer" || this.running);
+  },
+};
+(function initTimerUI() {
+  const chips = $("#durChips");
+  [10, 15, 20, 25, 30, 45, 60].forEach((m) => {
+    const b = document.createElement("button"); b.textContent = m; b.dataset.m = m;
+    b.addEventListener("click", () => { S.timerMin = m; $("#durCustom").value = ""; save(); if (!Timer.running) Timer.reset(); Timer.render(); });
+    chips.appendChild(b);
+  });
+  const inp = document.createElement("input"); inp.type = "number"; inp.min = 1; inp.max = 600; inp.placeholder = "Other"; inp.id = "durCustom"; inp.inputMode = "numeric"; inp.setAttribute("aria-label", "Custom minutes");
+  inp.addEventListener("change", () => { const v = parseInt(inp.value, 10); if (v > 0 && v <= 600) { S.timerMin = v; save(); if (!Timer.running) Timer.reset(); Timer.render(); } });
+  chips.appendChild(inp);
+  $$("#timerMode button").forEach((b) => b.addEventListener("click", () => { if (S.timerMode === b.dataset.mode) return; S.timerMode = b.dataset.mode; save(); Timer.reset(); }));
+  $("#tStart").addEventListener("click", () => (Timer.running ? Timer.pause() : Timer.start()));
+  $("#tReset").addEventListener("click", () => Timer.reset());
+  $("#timerPill").addEventListener("click", () => openSheet("timer"));
+  $("#optChime").checked = S.chime; $("#optFade").checked = S.fade;
+  $("#optChime").addEventListener("change", (e) => { S.chime = e.target.checked; save(); });
+  $("#optFade").addEventListener("change", (e) => { S.fade = e.target.checked; save(); });
+})();
+
+function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function syncControls() {
+  ["weight", "zoom", "gap", "patStrength"].forEach((k) => { const r = $("#" + k); r.value = S[k]; r.dispatchEvent(new Event("input")); });
+  const d = $("#dimR"); d.value = S.dim; d.dispatchEvent(new Event("input"));
+  $("#master").value = S.master; $("#masterOut").textContent = Math.round(S.master * 100) + "%";
+  $("#optChime").checked = S.chime; $("#optFade").checked = S.fade;
+  renderSwatches(); Timer.render();
+}
+
+/* ---------- boot ---------- */
+async function boot() {
+  applyLook(); renderSwatches(); renderSounds(); Timer.render();
+  if (!window.pdfjsLib) {
+    pagesEl.innerHTML = '<div class="state-msg"><strong>The PDF engine didn\'t load</strong>Check your connection and reopen the page.</div>';
+    return;
+  }
+  pagesEl.innerHTML = '<div class="state-msg"><strong>Opening your library…</strong></div>';
+  await Store.init();
+  if (Store.cloud) {
+    const remote = await Store.loadSettings();
+    if (remote) { const { kind, ...rest } = remote; S = mergeSettings(rest); LS.set("settings", S); applyLook(); syncControls(); }
+  }
+  await refreshLibrary();
+  const last = books.find((b) => b.id === S.lastBook);
+  Reader.open(last || (books.length && S.lastBook !== SAMPLE_ID ? books[0] : sampleBook()));
+}
+boot();
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+})();
+</script>
+
+</body>
+</html>
